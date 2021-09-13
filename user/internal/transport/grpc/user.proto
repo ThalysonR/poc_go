@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package grpc;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./grpc";
+
+message User {
+  uint32 ID = 1;
+  string BirthDate = 2;
+  string Email = 3;
+  string FirstName = 4;
+  string LastName = 5;
+  google.protobuf.Timestamp CreatedAt = 6;
+  google.protobuf.Timestamp UpdatedAt = 7;
+}
+
+message UserResponse { repeated User users = 1; }
+
+service UserService {
+  rpc FindAll(google.protobuf.Empty) returns (UserResponse) {}
+}
