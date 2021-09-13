@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/thalysonr/poc_go/common/errors"
-	"github.com/thalysonr/poc_go/common/log"
 	"github.com/thalysonr/poc_go/user/internal/app/model"
 	"github.com/thalysonr/poc_go/user/internal/app/repository"
 )
@@ -38,12 +37,11 @@ func (u *UserService) Create(context context.Context, user model.User) (uint, er
 	return u.userRepository.Create(context, user)
 }
 
-func (u *UserService) Delete(context context.Context, user model.User) error {
-	return u.userRepository.Delete(context, user)
+func (u *UserService) Delete(context context.Context, id uint) error {
+	return u.userRepository.Delete(context, id)
 }
 
 func (u *UserService) FindAll(context context.Context) ([]model.User, error) {
-	log.GetLogger().Info("FindAll called...")
 	return u.userRepository.FindAll(context)
 }
 

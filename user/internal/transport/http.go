@@ -6,7 +6,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/thalysonr/poc_go/common/errors"
-	"github.com/thalysonr/poc_go/common/log"
 	"github.com/thalysonr/poc_go/user/internal/app/model"
 	"github.com/thalysonr/poc_go/user/internal/app/service"
 )
@@ -35,9 +34,7 @@ func (h *HttpServer) Start() error {
 
 func (h *HttpServer) Stop() error {
 	if h.app != nil {
-		log.GetLogger().Debug("Shutting down http...")
 		err := h.app.Shutdown()
-		log.GetLogger().Debug("Http shut down successfully")
 		return err
 	}
 	return nil

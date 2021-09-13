@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,6 +10,7 @@ import (
 	"github.com/thalysonr/poc_go/user/internal/app/service"
 	"github.com/thalysonr/poc_go/user/internal/datasources"
 	"github.com/thalysonr/poc_go/user/internal/transport"
+	tgrpc "github.com/thalysonr/poc_go/user/internal/transport/grpc"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -16,24 +18,27 @@ import (
 func main() {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	ctx := context.Background()
 
 	logger := NewZapLogger(log.DEBUG)
 	log.SetLogger(logger)
 
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		Logger: logger,
+	})
 	if err != nil {
 		panic("failed to connect db")
 	}
 
-	logger.Info("Starting services...")
+	logger.Info(ctx, "Starting services...")
 	services := getServices(db)
 	errChan := runServices(services)
 
 	select {
 	case <-done:
-		logger.Info("Termination signal received")
+		logger.Info(ctx, "Termination signal received")
 	case err := <-errChan:
-		logger.Info("Server error: %s", err)
+		logger.Info(ctx, "Server error: %s", err)
 	}
 
 	sqlDB, _ := db.DB()
@@ -42,7 +47,7 @@ func main() {
 		service.Stop()
 	}
 
-	logger.Info("Server Stopped")
+	logger.Info(ctx, "Server Stopped")
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,7 +60,7 @@ func getServices(db *gorm.DB) []transport.Service {
 
 	return []transport.Service{
 		transport.NewHttpServer(*userService),
-		transport.NewGrpcServer(*userService),
+		tgrpc.NewGrpcServer(*userService),
 	}
 }
 

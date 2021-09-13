@@ -7,6 +7,13 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "./grpc";
 
+message CreateUser {
+  string BirthDate = 1;
+  string Email = 2;
+  string FirstName = 3;
+  string LastName = 4;
+}
+
 message User {
   uint32 ID = 1;
   string BirthDate = 2;
@@ -19,6 +26,11 @@ message User {
 
 message UserResponse { repeated User users = 1; }
 
+message UserID { uint32 ID = 1; }
+
 service UserService {
+  rpc Create(CreateUser) returns (UserID) {}
+  rpc Delete(UserID) returns (google.protobuf.Empty) {}
   rpc FindAll(google.protobuf.Empty) returns (UserResponse) {}
+  rpc FindOne(UserID) returns (User) {}
 }

@@ -29,10 +29,8 @@ func (u *UserDBDatasource) Create(context context.Context, user model.User) (uin
 	return userEntity.ID, nil
 }
 
-func (u *UserDBDatasource) Delete(context context.Context, user model.User) error {
-	userEntity := &model.User{}
-	*userEntity = user
-	res := u.db.WithContext(context).Delete(userEntity)
+func (u *UserDBDatasource) Delete(context context.Context, id uint) error {
+	res := u.db.WithContext(context).Delete(&model.User{}, id)
 	if res.Error != nil {
 		return res.Error
 	}
@@ -52,7 +50,7 @@ func (u *UserDBDatasource) FindAll(context context.Context) ([]model.User, error
 
 func (u *UserDBDatasource) FindOne(context context.Context, id uint) (*model.User, error) {
 	var userEntity model.User
-	res := u.db.WithContext(context).Find(&userEntity, id)
+	res := u.db.WithContext(context).First(&userEntity, id)
 	if res.Error != nil {
 		return nil, res.Error
 	}
