@@ -20,12 +20,10 @@ func init() {
 }
 
 type Logger interface {
-	Debug(...interface{})
-	Error(...interface{})
-	Info(...interface{})
-	SetLevel(Level)
-	Warn(...interface{})
-	WithContext(context.Context) Logger
+	Debug(context.Context, string, ...interface{})
+	Error(context.Context, string, ...interface{})
+	Info(context.Context, string, ...interface{})
+	Warn(context.Context, string, ...interface{})
 }
 
 func GetLogger() Logger {
