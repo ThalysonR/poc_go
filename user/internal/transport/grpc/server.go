@@ -27,13 +27,11 @@ func (g *GrpcServer) Start() error {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
 
-	s := userService{
-		userService: g.userService,
-	}
-
 	server := grpc.NewServer()
 	g.server = server
-	mygrpc.RegisterUserServiceServer(server, &s)
+	mygrpc.RegisterUserServiceServer(server, &userService{
+		userService: g.userService,
+	})
 	reflection.Register(server)
 	return server.Serve(lis)
 }

@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/thalysonr/poc_go/common/log"
+	"github.com/thalysonr/poc_go/user/internal/app/repository"
 	"github.com/thalysonr/poc_go/user/internal/app/service"
 	"github.com/thalysonr/poc_go/user/internal/datasources"
 	"github.com/thalysonr/poc_go/user/internal/transport"
@@ -15,59 +16,41 @@ import (
 	"gorm.io/gorm"
 )
 
+type Server struct {
+	ctx          context.Context
+	db           *gorm.DB
+	logger       *ZapLogger
+	repositories repository.Repositories
+	services     []transport.Service
+}
+
 func main() {
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	ctx := context.Background()
-
-	logger := NewZapLogger(log.DEBUG)
-	log.SetLogger(logger)
-
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
-		Logger: logger,
-	})
-	if err != nil {
-		panic("failed to connect db")
-	}
-
-	logger.Info(ctx, "Starting services...")
-	services := getServices(db)
-	errChan := runServices(services)
-
-	select {
-	case <-done:
-		logger.Info(ctx, "Termination signal received")
-	case err := <-errChan:
-		logger.Info(ctx, "Server error: %s", err)
-	}
-
-	sqlDB, _ := db.DB()
-	sqlDB.Close()
-	for _, service := range services {
-		service.Stop()
-	}
-
-	logger.Info(ctx, "Server Stopped")
+	server := Server{}
+	defer server.close()
+	server.setup()
+	server.run()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ///////                       AUXILIARY FUNCTIONS                        ///////
 ////////////////////////////////////////////////////////////////////////////////
 
-func getServices(db *gorm.DB) []transport.Service {
-	userRepository := datasources.NewUserDBDatasource(db)
-	userService := service.NewUserService(userRepository)
-
-	return []transport.Service{
-		transport.NewHttpServer(*userService),
-		tgrpc.NewGrpcServer(*userService),
+func (s *Server) close() {
+	sqlDB, _ := s.db.DB()
+	sqlDB.Close()
+	for _, service := range s.services {
+		service.Stop()
 	}
+	s.logger.Info(s.ctx, "Server Stopped")
 }
 
-func runServices(services []transport.Service) <-chan error {
+func (s *Server) run() {
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
 	errChan := make(chan error, 1)
 
-	for _, service := range services {
+	for _, service := range s.services {
 		go func(errC chan<- error, svc transport.Service) {
 			err := svc.Start()
 			if err != nil {
@@ -75,5 +58,50 @@ func runServices(services []transport.Service) <-chan error {
 			}
 		}(errChan, service)
 	}
-	return errChan
+
+	select {
+	case <-done:
+		s.logger.Info(s.ctx, "Termination signal received")
+	case err := <-errChan:
+		s.logger.Error(s.ctx, "Server error: %s", err)
+	}
+}
+
+func (s *Server) setup() {
+	s.ctx = context.Background()
+	s.setupLogger()
+	s.setupDB(s.logger)
+	s.setupRepositories(s.db)
+	s.setupServices()
+}
+
+func (s *Server) setupDB(logger *ZapLogger) {
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		Logger: logger,
+	})
+	if err != nil {
+		panic("failed to connect db")
+	}
+	s.db = db
+}
+
+func (s *Server) setupLogger() {
+	logger := NewZapLogger(log.DEBUG, nil)
+	log.SetLogger(logger)
+	s.logger = logger
+}
+
+func (s *Server) setupRepositories(db *gorm.DB) {
+	s.repositories = repository.Repositories{
+		User: datasources.NewUserDBDatasource(db),
+	}
+}
+
+func (s *Server) setupServices() {
+	userService := service.NewUserService(s.repositories.User)
+
+	s.services = []transport.Service{
+		transport.NewHttpServer(*userService),
+		tgrpc.NewGrpcServer(*userService),
+	}
 }

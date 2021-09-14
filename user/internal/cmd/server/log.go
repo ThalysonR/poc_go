@@ -12,33 +12,30 @@ import (
 )
 
 type ZapLogger struct {
-	ctx *context.Context
+	fc  func(context.Context) []interface{}
 	zap *zap.Logger
 }
 
-func NewZapLogger(level log.Level) *ZapLogger {
+func NewZapLogger(level log.Level, fc func(context.Context) []interface{}) *ZapLogger {
 	config := defaultConfig(level)
-
 	logger, _ := config.Build()
 
 	return &ZapLogger{
+		fc:  fc,
 		zap: logger,
 	}
 }
 
 func (z *ZapLogger) Debug(ctx context.Context, msg string, args ...interface{}) {
-	args = append(args, z.ctx)
-	z.zap.Sugar().With(spreadContext(ctx)...).Debug(mergeArgs(msg, args...)...)
+	z.zap.Sugar().With(z.spreadContext(ctx)...).Debug(mergeArgs(msg, args...)...)
 }
 
 func (z *ZapLogger) Error(ctx context.Context, msg string, args ...interface{}) {
-	args = append(args, z.ctx)
-	z.zap.Sugar().With(spreadContext(ctx)...).Error(mergeArgs(msg, args...)...)
+	z.zap.Sugar().With(z.spreadContext(ctx)...).Error(mergeArgs(msg, args...)...)
 }
 
 func (z *ZapLogger) Info(ctx context.Context, msg string, args ...interface{}) {
-	args = append(args, z.ctx)
-	z.zap.Sugar().With(spreadContext(ctx)...).Info(mergeArgs(msg, args...)...)
+	z.zap.Sugar().With(z.spreadContext(ctx)...).Info(mergeArgs(msg, args...)...)
 }
 
 func (z *ZapLogger) LogMode(level logger.LogLevel) logger.Interface {
@@ -51,7 +48,7 @@ func (z *ZapLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql s
 	if err != nil {
 		errStr = err.Error()
 	}
-	z.zap.Sugar().With(spreadContext(ctx)...).With(
+	z.zap.Sugar().With(z.spreadContext(ctx)...).With(
 		"begin", begin.Format(time.RFC3339),
 		"sql", sql,
 		"rows_affected", fmt.Sprintf("%d", rowsAffected),
@@ -60,7 +57,7 @@ func (z *ZapLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql s
 }
 
 func (z *ZapLogger) Warn(ctx context.Context, msg string, args ...interface{}) {
-	z.zap.Sugar().With(spreadContext(ctx)...).Warn(mergeArgs(msg, args...)...)
+	z.zap.Sugar().With(z.spreadContext(ctx)...).Warn(mergeArgs(msg, args...)...)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,8 +86,13 @@ func mergeArgs(msg string, args ...interface{}) []interface{} {
 	return mergedArgs
 }
 
-func spreadContext(ctx context.Context) []interface{} {
+func (z *ZapLogger) spreadContext(ctx context.Context) []interface{} {
 	var args []interface{}
-	// TODO: get stuff from context
+	if z.fc == nil {
+		return args
+	}
+	if cbArgs := z.fc(ctx); len(cbArgs)%2 == 0 {
+		args = cbArgs
+	}
 	return args
 }
