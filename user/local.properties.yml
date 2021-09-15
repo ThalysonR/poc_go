@@ -1,5 +1,5 @@
 server:
   http:
-    port: 3000
+    port: 5000
   grpc:
     port: 9000

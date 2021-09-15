@@ -23,11 +23,11 @@ import (
 )
 
 type Server struct {
-	config             *config.Config
 	configSubscription *cconfig.ConfigSubscription
 	ctx                context.Context
 	db                 *gorm.DB
 	errChan            chan error
+	initialConfig      config.Config
 	logger             *ZapLogger
 	repositories       repository.Repositories
 	services           sync.Map
@@ -62,7 +62,7 @@ func (s *Server) run() {
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	s.services.Range(func(key, value interface{}) bool {
-		go runService(*s.config, s.errChan, value.(transport.Service))
+		go runService(s.initialConfig, s.errChan, value.(transport.Service))
 		return true
 	})
 
@@ -105,17 +105,18 @@ func (s *Server) setupConfig() {
 	}
 
 	cfg := config.Config{}
-	s.config = &cfg
-	subscription, err := co.Subscribe(&cfg, func(err error) {
+	subscription, err := co.Subscribe(&cfg, func(f func(cfgObj interface{}) error) {
+		sCfg := config.Config{}
+		err = f(&sCfg)
 		s.logger.Info(s.ctx, "config changed")
 		if err != nil {
 			log.GetLogger().Error(s.ctx, "could not refresh config")
 		} else {
 			s.services.Range(func(key, value interface{}) bool {
 				svc := value.(transport.Service)
-				if svc.ConfigChanged(*s.config) {
+				if svc.ConfigChanged(sCfg) {
 					svc.Stop()
-					go runService(*s.config, s.errChan, value.(transport.Service))
+					go runService(sCfg, s.errChan, value.(transport.Service))
 				}
 				return true
 			})
@@ -125,6 +126,7 @@ func (s *Server) setupConfig() {
 	if err != nil {
 		panic("could not get config")
 	}
+	s.initialConfig = cfg
 	s.configSubscription = subscription
 }
 
