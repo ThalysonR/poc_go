@@ -2,7 +2,9 @@ package datasources
 
 import (
 	"context"
+	"errors"
 
+	terrors "github.com/thalysonr/poc_go/common/errors"
 	"github.com/thalysonr/poc_go/user/internal/app/model"
 	"gorm.io/gorm"
 )
@@ -50,9 +52,12 @@ func (u *UserDBDatasource) FindAll(context context.Context) ([]model.User, error
 
 func (u *UserDBDatasource) FindOne(context context.Context, id uint) (*model.User, error) {
 	var userEntity model.User
-	res := u.db.WithContext(context).First(&userEntity, id)
-	if res.Error != nil {
-		return nil, res.Error
+	err := u.db.WithContext(context).First(&userEntity, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, terrors.NewErrNotFound("user not found: %d", id)
+		}
+		return nil, err
 	}
 
 	return &userEntity, nil

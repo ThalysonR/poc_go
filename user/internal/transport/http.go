@@ -2,16 +2,20 @@ package transport
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/thalysonr/poc_go/common/errors"
 	"github.com/thalysonr/poc_go/user/internal/app/model"
 	"github.com/thalysonr/poc_go/user/internal/app/service"
+	"github.com/thalysonr/poc_go/user/internal/config"
 )
 
 type HttpServer struct {
 	app         *fiber.App
+	cfg         config.Config
 	userService service.UserService
 }
 
@@ -21,15 +25,20 @@ func NewHttpServer(userService service.UserService) *HttpServer {
 	}
 }
 
-func (h *HttpServer) Start() error {
+func (h *HttpServer) ConfigChanged(cfg config.Config) bool {
+	return !reflect.DeepEqual(h.cfg.Server.Http, cfg.Server.Http)
+}
+
+func (h *HttpServer) Start(cfg config.Config) error {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: errorHandler,
 		ReadTimeout:  time.Second * 30,
 		WriteTimeout: time.Second * 30,
 	})
+	h.cfg = cfg
 	h.loadRoutes(app)
 	h.app = app
-	return app.Listen(":3000")
+	return app.Listen(fmt.Sprintf(":%d", cfg.Server.Http.Port))
 }
 
 func (h *HttpServer) Stop() error {

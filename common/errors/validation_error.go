@@ -9,8 +9,8 @@ type ValidationErrorField struct {
 	Field string
 }
 
-func NewValidationError(fields []ValidationErrorField) ValidationError {
-	return ValidationError{
+func NewValidationError(fields []ValidationErrorField) *ValidationError {
+	return &ValidationError{
 		Fields: fields,
 	}
 }

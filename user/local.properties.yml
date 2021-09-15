@@ -1,0 +1,5 @@
+server:
+  http:
+    port: 3000
+  grpc:
+    port: 9000
