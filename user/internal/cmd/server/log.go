@@ -16,8 +16,8 @@ type ZapLogger struct {
 	zap *zap.Logger
 }
 
-func NewZapLogger(level log.Level, fc func(context.Context) []interface{}) *ZapLogger {
-	config := defaultConfig(level)
+func NewZapLogger(development bool, level log.Level, fc func(context.Context) []interface{}) *ZapLogger {
+	config := defaultConfig(development, level)
 	logger, _ := config.Build()
 
 	return &ZapLogger{
@@ -64,16 +64,26 @@ func (z *ZapLogger) Warn(ctx context.Context, msg string, args ...interface{}) {
 ///////                       AUXILIARY FUNCTIONS                        ///////
 ////////////////////////////////////////////////////////////////////////////////
 
-func defaultConfig(level log.Level) zap.Config {
+func defaultConfig(development bool, level log.Level) zap.Config {
+	var encoding string
+	var encoder zapcore.EncoderConfig
+	if development {
+		encoding = "console"
+		encoder = zap.NewDevelopmentEncoderConfig()
+		encoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		encoding = "json"
+		encoder = zap.NewProductionEncoderConfig()
+	}
 	return zap.Config{
 		Level:       zap.NewAtomicLevelAt(zapcore.Level(level)),
-		Development: false,
+		Development: development,
 		Sampling: &zap.SamplingConfig{
 			Initial:    100,
 			Thereafter: 100,
 		},
-		Encoding:         "json",
-		EncoderConfig:    zap.NewProductionEncoderConfig(),
+		Encoding:         encoding,
+		EncoderConfig:    encoder,
 		OutputPaths:      []string{"stderr"},
 		ErrorOutputPaths: []string{"stderr"},
 	}

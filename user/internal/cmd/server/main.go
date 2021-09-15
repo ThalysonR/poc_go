@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -72,7 +74,7 @@ out:
 			break out
 		case err := <-s.errChan:
 			if err != nil {
-				s.logger.Error(s.ctx, "Server error: %s", err)
+				s.logger.Error(s.ctx, fmt.Sprintf("Server error: %s", err))
 				break out
 			}
 		}
@@ -137,7 +139,8 @@ func (s *Server) setupDB(logger *ZapLogger) {
 }
 
 func (s *Server) setupLogger() {
-	logger := NewZapLogger(log.DEBUG, nil)
+	runMode := os.Getenv("RUN_MODE")
+	logger := NewZapLogger(strings.ToLower(runMode) != "production", log.DEBUG, nil)
 	log.SetLogger(logger)
 	s.logger = logger
 }
