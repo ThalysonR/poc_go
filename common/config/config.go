@@ -5,11 +5,13 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	_ "github.com/spf13/viper/remote"
+	"github.com/thalysonr/poc_go/common/utils"
 )
 
 var (
@@ -37,11 +39,10 @@ func GetConfigObservable() (*configObservable, error) {
 	return configInstance, nil
 }
 
-func (c *configObservable) Subscribe(configObj interface{}, cb func(error)) (*ConfigSubscription, error) {
+func (c *configObservable) Subscribe(configObj interface{}, cb func(func(cfgObj interface{}) error)) (*ConfigSubscription, error) {
 	subscription := &ConfigSubscription{
-		id:        uuid.New(),
-		configObj: configObj,
-		cb:        cb,
+		id: uuid.New(),
+		cb: cb,
 	}
 	err := viper.Unmarshal(configObj)
 	if err != nil {
@@ -69,20 +70,24 @@ func (c *configObservable) setup() error {
 		}
 		defer viper.WatchRemoteConfig()
 	}
+	debouncer := utils.NewDebouncer(time.Second)
 	viper.OnConfigChange(func(in fsnotify.Event) {
-		c.subscriptions.Range(func(key, value interface{}) bool {
-			sub := value.(*ConfigSubscription)
-			sub.cb(viper.Unmarshal(sub.configObj))
-			return true
+		debouncer(func() {
+			c.subscriptions.Range(func(key, value interface{}) bool {
+				sub := value.(*ConfigSubscription)
+				sub.cb(func(cfgObj interface{}) error {
+					return viper.Unmarshal(cfgObj)
+				})
+				return true
+			})
 		})
 	})
 	return nil
 }
 
 type ConfigSubscription struct {
-	id        uuid.UUID
-	configObj interface{}
-	cb        func(error)
+	id uuid.UUID
+	cb func(func(cfgObj interface{}) error)
 }
 
 func (c *ConfigSubscription) Unsubscribe() {
