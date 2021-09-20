@@ -13,7 +13,8 @@ services:
             RUN_MODE: development 
             SERVICE_NAME: user
         ports:
-            - "8000"
+            - "5000:5000"
+            - "9000:9000"
 
     etcd:
         image: quay.io/coreos/etcd:v3.3.25
