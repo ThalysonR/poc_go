@@ -56,6 +56,7 @@ func (c *configObservable) Subscribe(configObj interface{}, cb func(func(cfgObj 
 func (c *configObservable) setup() error {
 	runMode := os.Getenv("RUN_MODE")
 	serviceName := os.Getenv("SERVICE_NAME")
+	etcdAddr := os.Getenv("ETCD_SERVER")
 	viper.SetConfigType("yml")
 	if runMode == "LOCAL" {
 		err := c.localConfig()
@@ -64,7 +65,7 @@ func (c *configObservable) setup() error {
 		}
 		defer viper.WatchConfig()
 	} else {
-		err := c.remoteConfig(runMode, serviceName)
+		err := c.remoteConfig(etcdAddr, runMode, serviceName)
 		if err != nil {
 			return err
 		}
@@ -104,7 +105,7 @@ func (c *configObservable) localConfig() error {
 	return viper.ReadInConfig()
 }
 
-func (c *configObservable) remoteConfig(runMode, serviceName string) error {
-	viper.AddRemoteProvider("etcd", "http://127.0.0.1:4001", fmt.Sprintf("/config/%s/%s.properties.yml", strings.ToLower(serviceName), strings.ToLower(runMode)))
+func (c *configObservable) remoteConfig(etcdServer, runMode, serviceName string) error {
+	viper.AddRemoteProvider("etcd", etcdServer, fmt.Sprintf("/config/%s/%s.properties.yml", strings.ToLower(serviceName), strings.ToLower(runMode)))
 	return viper.ReadRemoteConfig()
 }

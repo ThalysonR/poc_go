@@ -1,0 +1,10 @@
+database:
+  address: "postgres"
+  name: "user"
+  user: "dbuser"
+  password: "dbpw"
+server:
+  http:
+    port: 5000
+  grpc:
+    port: 9000

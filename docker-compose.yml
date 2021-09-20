@@ -1,0 +1,48 @@
+version: '3'
+services:
+    user:
+        image: poc_go/user
+        build:
+            context: .
+            dockerfile: 'user.dockerfile'
+        depends_on:
+            - etcd
+            - postgres
+        environment:
+            ETCD_SERVER: 'http://etcd:4001'
+            RUN_MODE: development 
+            SERVICE_NAME: user
+        ports:
+            - "8000"
+
+    etcd:
+        image: quay.io/coreos/etcd:v3.3.25
+        entrypoint: /usr/local/bin/etcd
+        command:
+            - '--name=etcd0'
+            - '--advertise-client-urls=http://192.168.0.241:2379,http://192.168.0.241:4001'
+            - '--listen-client-urls=http://0.0.0.0:2379,http://0.0.0.0:4001'
+            - '--initial-advertise-peer-urls=http://192.168.0.241:2380'
+            - '--listen-peer-urls=http://0.0.0.0:2380'
+            - '--initial-cluster-token=etcd-cluster-1'
+            - '--initial-cluster=etcd0=http://192.168.0.241:2380'
+            - '--initial-cluster-state=new'
+        ports:
+            - '4001:4001'
+            - '2380:2380'
+            - '2379:2379'
+        volumes:
+            - etcd:/etcd_data
+
+    postgres:
+        image: postgres
+        environment:
+            POSTGRES_DB: user
+            POSTGRES_USER: dbuser
+            POSTGRES_PASSWORD: dbpw
+        volumes:
+            - postgres:/var/lib/postgresql/data
+
+volumes:
+    etcd:
+    postgres:

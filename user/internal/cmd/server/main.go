@@ -18,6 +18,7 @@ import (
 	"github.com/thalysonr/poc_go/user/internal/datasources"
 	"github.com/thalysonr/poc_go/user/internal/transport"
 	tgrpc "github.com/thalysonr/poc_go/user/internal/transport/grpc"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -93,7 +94,7 @@ func (s *Server) setup() {
 	s.ctx = context.Background()
 	s.setupLogger()
 	s.setupConfig()
-	s.setupDB(s.logger)
+	s.setupDB(s.initialConfig, s.logger)
 	s.setupRepositories(s.db)
 	s.setupServices()
 }
@@ -130,8 +131,22 @@ func (s *Server) setupConfig() {
 	s.configSubscription = subscription
 }
 
-func (s *Server) setupDB(logger *ZapLogger) {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+func (s *Server) setupDB(config config.Config, logger *ZapLogger) {
+	var dial gorm.Dialector
+	if strings.ToLower(config.RunMode) != "local" {
+		dial = postgres.Open(
+			fmt.Sprintf(
+				"host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=America/Manaus",
+				config.Database.Address,
+				config.Database.User,
+				config.Database.Password,
+				config.Database.Name,
+			),
+		)
+	} else {
+		dial = sqlite.Open("test.db")
+	}
+	db, err := gorm.Open(dial, &gorm.Config{
 		Logger: logger,
 	})
 	if err != nil {
